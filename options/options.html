@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Reading 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>AI Reading - 智能小说阅读器</h1>
+      <p class="subtitle">配置您的个性化阅读体验</p>
+    </header>
+
+    <main class="main">
+      <!-- 基本设置 -->
+      <section class="section">
+        <h2>基本设置</h2>
+        <div class="setting-group">
+          <label class="setting-item">
+            <input type="checkbox" id="auto-detect" checked>
+            <span class="checkmark"></span>
+            自动检测小说内容
+            <small>页面加载时自动识别小说文章内容</small>
+          </label>
+        </div>
+      </section>
+
+      <!-- 语音设置 -->
+      <section class="section">
+        <h2>语音朗读设置</h2>
+        
+        <div class="setting-group">
+          <label for="default-rate">默认语速</label>
+          <div class="range-control">
+            <input type="range" id="default-rate" min="0.5" max="2" step="0.1" value="1">
+            <span class="range-value" id="rate-value">1.0x</span>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label for="default-volume">默认音量</label>
+          <div class="range-control">
+            <input type="range" id="default-volume" min="0" max="1" step="0.1" value="0.8">
+            <span class="range-value" id="volume-value">80%</span>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label for="default-voice">默认语音</label>
+          <select id="default-voice" class="select-control">
+            <option value="">系统默认</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- 检测设置 -->
+      <section class="section">
+        <h2>内容检测设置</h2>
+        
+        <div class="setting-group">
+          <label>检测敏感度</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="sensitivity" value="high" checked>
+              <span class="radio-mark"></span>
+              高敏感度 (检测更多内容)
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="sensitivity" value="medium">
+              <span class="radio-mark"></span>
+              中等敏感度 (平衡检测)
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="sensitivity" value="low">
+              <span class="radio-mark"></span>
+              低敏感度 (只检测明确内容)
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label for="min-content-length">最小内容长度 (字符)</label>
+          <input type="number" id="min-content-length" min="100" max="10000" step="100" value="300" class="number-input">
+          <small>低于此长度的内容将不被识别为小说</small>
+        </div>
+      </section>
+
+      <!-- 数据管理 -->
+      <section class="section">
+        <h2>数据管理</h2>
+        
+        <div class="action-group">
+          <button id="export-settings" class="btn btn-secondary">
+            <span class="icon">📤</span>
+            导出设置
+          </button>
+          
+          <button id="import-settings" class="btn btn-secondary">
+            <span class="icon">📥</span>
+            导入设置
+          </button>
+          
+          <button id="reset-settings" class="btn btn-danger">
+            <span class="icon">🔄</span>
+            重置所有设置
+          </button>
+        </div>
+        
+        <input type="file" id="import-file" accept=".json" style="display: none;">
+      </section>
+
+      <!-- 关于信息 -->
+      <section class="section">
+        <h2>关于</h2>
+        
+        <div class="info-group">
+          <div class="info-item">
+            <span class="info-label">版本:</span>
+            <span class="info-value">1.0.0</span>
+          </div>
+          
+          <div class="info-item">
+            <span class="info-label">开发:</span>
+            <span class="info-value">极简化版本 - 原生JavaScript实现</span>
+          </div>
+          
+          <div class="info-item">
+            <span class="info-label">功能:</span>
+            <span class="info-value">智能内容检测 + 语音朗读</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 状态提示 -->
+    <div class="toast" id="toast" style="display: none;"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

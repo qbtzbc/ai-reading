@@ -1,0 +1,17 @@
+<!-- AI Reading 图标 SVG 模板 -->
+<svg width="128" height="128" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆角矩形 -->
+  <rect width="128" height="128" rx="20" ry="20" fill="#2196F3"/>
+  
+  <!-- 书本图标 -->
+  <rect x="25" y="30" width="78" height="68" rx="4" ry="4" fill="white"/>
+  <rect x="32" y="38" width="64" height="4" fill="#2196F3"/>
+  <rect x="32" y="48" width="52" fill="#E3F2FD"/>
+  <rect x="32" y="58" width="58" height="2" fill="#E3F2FD"/>
+  <rect x="32" y="68" width="50" height="2" fill="#E3F2FD"/>
+  <rect x="32" y="78" width="55" height="2" fill="#E3F2FD"/>
+  <rect x="32" y="88" width="42" height="2" fill="#E3F2FD"/>
+  
+  <!-- AI 文字 -->
+  <text x="64" y="115" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="white">AI</text>
+</svg>
