@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run tests
+      run: npm test
+    
+    - name: Build extension
+      run: npm run build
+    
+    - name: Package extension
+      run: |
+        cd dist
+        zip -r ../ai-reading-${{ github.ref_name }}.zip .
+    
+    - name: Extract release notes
+      id: extract-release-notes
+      run: |
+        # Extract release notes from CHANGELOG.md for this version
+        VERSION=${{ github.ref_name }}
+        if [ -f CHANGELOG.md ]; then
+          # Get content between version headers
+          sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' > release-notes.md
+        else
+          echo "Release $VERSION" > release-notes.md
+        fi
+    
+    - name: Create Release
+      uses: actions/create-release@v1
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: AI Reading ${{ github.ref_name }}
+        body_path: release-notes.md
+        draft: false
+        prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./ai-reading-${{ github.ref_name }}.zip
+        asset_name: ai-reading-${{ github.ref_name }}.zip
+        asset_content_type: application/zip
+    
+    - name: Notify success
+      run: |
+        echo "✅ Release ${{ github.ref_name }} has been created successfully!"
+        echo "📦 Extension package: ai-reading-${{ github.ref_name }}.zip"
+        echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"

@@ -1,0 +1,72 @@
+# 依赖目录
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 构建输出
+dist/
+build/
+.output/
+
+# 环境文件
+.env
+.env.local
+.env.*.local
+
+# IDE 文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+*.log
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+.vitest/
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# 打包文件
+*.tgz
+*.tar.gz
+
+# Chrome 扩展打包
+*.crx
+*.pem
+web-ext-artifacts/
+
+# Vite
+.vite/
+
+# TypeScript
+*.tsbuildinfo
+
+# 旧的 Webpack 配置备份（如果需要）
+webpack.config.js.bak
