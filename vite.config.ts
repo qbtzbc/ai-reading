@@ -2,10 +2,11 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { crx } from '@crxjs/vite-plugin'
 import { resolve } from 'path'
-import manifest from './public/manifest.json'
+import manifest from './manifest.json'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: './', // 添加这行来修复Chrome扩展的路径问题
   plugins: [
     vue(),
     crx({ manifest })
