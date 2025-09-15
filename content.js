@@ -119,88 +119,112 @@ class SimpleNovelReader {
   handleMessage(message, sender, sendResponse) {
     console.log('Content script received message:', message.type);
     
-    switch (message.type) {
-      case 'START_READING':
-        this.startReading(message.data);
-        sendResponse({ success: true });
-        break;
-        
-      case 'STOP_READING':
-        this.stopReading();
-        sendResponse({ success: true });
-        break;
-        
-      case 'PAUSE_READING':
-        this.pauseReading();
-        sendResponse({ success: true });
-        break;
-        
-      case 'RESUME_READING':
-        this.resumeReading();
-        sendResponse({ success: true });
-        break;
-        
-      case 'GET_STATUS':
-        sendResponse({
-          isReading: this.isReading,
-          isPaused: this.isPaused,
-          hasContent: this.novelContent.length > 0,
-          progress: this.getProgress()
-        });
-        break;
-        
-      case 'DETECT_CONTENT':
-        const detected = this.detectContent();
-        sendResponse({ 
-          detected, 
-          contentLength: this.novelContent.length,
-          sentences: this.sentences.length 
-        });
-        break;
-        
-      case 'UPDATE_SETTINGS':
-        this.updateSettings(message.data);
-        sendResponse({ success: true });
-        break;
-        
-      default:
-        sendResponse({ error: 'Unknown message type: ' + message.type });
+    try {
+      switch (message.type) {
+        case 'START_READING':
+          this.startReading(message.data)
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ error: error.message }));
+          break;
+          
+        case 'STOP_READING':
+          this.stopReading();
+          sendResponse({ success: true });
+          break;
+          
+        case 'PAUSE_READING':
+          this.pauseReading();
+          sendResponse({ success: true });
+          break;
+          
+        case 'RESUME_READING':
+          this.resumeReading()
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ error: error.message }));
+          break;
+          
+        case 'GET_STATUS':
+          sendResponse({
+            isReading: this.isReading,
+            isPaused: this.isPaused,
+            hasContent: this.novelContent.length > 0,
+            progress: this.getProgress()
+          });
+          break;
+          
+        case 'DETECT_CONTENT':
+          try {
+            const detected = this.detectContent();
+            sendResponse({ 
+              detected, 
+              contentLength: this.novelContent.length,
+              sentences: this.sentences.length 
+            });
+          } catch (error) {
+            sendResponse({ 
+              detected: false, 
+              error: error.message
+            });
+          }
+          break;
+          
+        case 'UPDATE_SETTINGS':
+          this.updateSettings(message.data);
+          sendResponse({ success: true });
+          break;
+          
+        default:
+          sendResponse({ error: 'Unknown message type: ' + message.type });
+      }
+    } catch (error) {
+      console.error('Error handling message:', error);
+      sendResponse({ error: error.message });
     }
   }
 
   // 开始朗读
   async startReading(data = {}) {
-    if (!this.novelContent) {
-      const detected = this.detectContent();
-      if (!detected) {
-        throw new Error('No content to read');
+    try {
+      // 检查语音支持
+      this.checkSpeechSupport();
+      
+      if (!this.novelContent) {
+        const detected = this.detectContent();
+        if (!detected) {
+          throw new Error('没有找到可朗读的内容');
+        }
       }
-    }
 
-    if (this.isReading) {
-      console.log('Already reading, stopping first...');
+      if (this.isReading) {
+        console.log('Already reading, stopping first...');
+        this.stopReading();
+      }
+
+      console.log('Starting to read...');
+
+      // 获取设置
+      const settings = await this.getSettings();
+      
+      // 设置朗读位置
+      this.currentSentenceIndex = data.sentenceIndex || 0;
+      
+      this.isReading = true;
+      this.isPaused = false;
+      
+      this.readNextSentence(settings);
+      
+      // 通知状态变化
+      this.notifyBackground('SPEECH_STATUS', { 
+        isReading: true, 
+        paused: false,
+        progress: this.getProgress()
+      });
+      
+    } catch (error) {
+      console.error('Failed to start reading:', error);
       this.stopReading();
+      throw error; // 重新抛出错误以便上层处理
     }
-
-    console.log('Starting to read...');
-
-    // 获取设置
-    const settings = await this.getSettings();
-    
-    // 设置朗读位置
-    this.currentSentenceIndex = data.sentenceIndex || 0;
-    
-    this.isReading = true;
-    this.isPaused = false;
-    
-    this.readNextSentence(settings);
-    
-    // 通知状态变化
-    this.notifyBackground('SPEECH_STATUS', { 
-      isReading: true, 
-      paused: false,
-      progress: this.getProgress()
-    });
   }
 
   // 朗读下一句
@@ -216,32 +240,64 @@ class SimpleNovelReader {
     const sentence = this.sentences[this.currentSentenceIndex];
     console.log(`Reading sentence ${this.currentSentenceIndex + 1}/${this.sentences.length}: ${sentence.substring(0, 50)}...`);
 
-    this.currentUtterance = new SpeechSynthesisUtterance(sentence);
-    this.currentUtterance.rate = settings.rate || 1.0;
-    this.currentUtterance.volume = settings.volume || 0.8;
-    
-    // 设置语音
-    if (settings.voiceType) {
-      const voices = this.synthesis.getVoices();
-      const voice = voices.find(v => v.name === settings.voiceType);
-      if (voice) {
-        this.currentUtterance.voice = voice;
+    try {
+      this.currentUtterance = new SpeechSynthesisUtterance(sentence);
+      this.currentUtterance.rate = settings.rate || 1.0;
+      this.currentUtterance.volume = settings.volume || 0.8;
+      
+      // 设置语音
+      if (settings.voiceType) {
+        const voices = this.synthesis.getVoices();
+        const voice = voices.find(v => v.name === settings.voiceType);
+        if (voice) {
+          this.currentUtterance.voice = voice;
+        }
       }
-    }
 
-    this.currentUtterance.onend = () => {
-      if (this.isReading && !this.isPaused) {
-        this.currentSentenceIndex++;
-        setTimeout(() => this.readNextSentence(settings), 100); // 短暂停顿
+      this.currentUtterance.onend = () => {
+        if (this.isReading && !this.isPaused) {
+          this.currentSentenceIndex++;
+          setTimeout(() => this.readNextSentence(settings), 100); // 短暂停顿
+        }
+      };
+
+      this.currentUtterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        
+        // 区分错误类型
+        switch (event.error) {
+          case 'not-allowed':
+            console.error('语音合成被禁止，请检查浏览器设置');
+            break;
+          case 'audio-busy':
+            console.error('音频设备繁忙，稍后重试');
+            // 稍后重试
+            setTimeout(() => this.readNextSentence(settings), 1000);
+            return;
+          case 'audio-hardware':
+            console.error('音频硬件错误');
+            break;
+          default:
+            console.error('未知语音合成错误:', event.error);
+        }
+        
+        this.stopReading();
+      };
+
+      // 检查synthesis状态
+      if (this.synthesis.speaking) {
+        this.synthesis.cancel();
+        setTimeout(() => {
+          this.synthesis.speak(this.currentUtterance);
+        }, 100);
+      } else {
+        this.synthesis.speak(this.currentUtterance);
       }
-    };
-
-    this.currentUtterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
+      
+    } catch (error) {
+      console.error('Failed to create speech utterance:', error);
       this.stopReading();
-    };
-
-    this.synthesis.speak(this.currentUtterance);
+    }
   }
 
   // 停止朗读
@@ -277,26 +333,32 @@ class SimpleNovelReader {
   }
 
   // 恢复朗读
-  resumeReading() {
+  async resumeReading() {
     if (!this.isPaused) return;
     
     console.log('Resuming reading...');
     
-    if (this.synthesis.paused) {
-      this.synthesis.resume();
-    } else {
-      // 如果暂停太久，重新开始朗读当前句子
-      this.startReading({ sentenceIndex: this.currentSentenceIndex });
-      return;
+    try {
+      if (this.synthesis.paused) {
+        this.synthesis.resume();
+      } else {
+        // 如果暂停太久，重新开始朗读当前句子
+        await this.startReading({ sentenceIndex: this.currentSentenceIndex });
+        return;
+      }
+      
+      this.isPaused = false;
+      
+      this.notifyBackground('SPEECH_STATUS', { 
+        isReading: true, 
+        paused: false,
+        progress: this.getProgress()
+      });
+      
+    } catch (error) {
+      console.error('Failed to resume reading:', error);
+      throw error;
     }
-    
-    this.isPaused = false;
-    
-    this.notifyBackground('SPEECH_STATUS', { 
-      isReading: true, 
-      paused: false,
-      progress: this.getProgress()
-    });
   }
 
   // 获取朗读进度
@@ -366,9 +428,27 @@ class SimpleNovelReader {
 
   // 通知background script
   notifyBackground(type, data) {
-    chrome.runtime.sendMessage({ type, data }).catch(error => {
-      console.warn('Failed to send message to background:', error);
-    });
+    try {
+      chrome.runtime.sendMessage({ type, data }).catch(error => {
+        console.warn('Failed to send message to background:', error);
+        // 可以在这里添加重试机制或备用方案
+      });
+    } catch (error) {
+      console.warn('Failed to send message to background (sync):', error);
+    }
+  }
+  
+  // 检查语音支持
+  checkSpeechSupport() {
+    if (!this.synthesis) {
+      throw new Error('浏览器不支持语音合成功能');
+    }
+    
+    if (!('speechSynthesis' in window)) {
+      throw new Error('浏览器不支持Web Speech API');
+    }
+    
+    return true;
   }
 }
 

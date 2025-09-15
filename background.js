@@ -108,29 +108,79 @@ class BackgroundService {
 
   // 更新扩展图标
   updateIcon(isReading) {
-    const iconPath = isReading ? 'icons/icon' : 'icons/icon'; // 暂时使用同一套图标
+    // 使用不同状态的图标路径（如果需要）
+    const iconPath = 'icons/icon'; // 现在使用同一套图标
     
-    try {
-      chrome.action.setIcon({
-        path: {
-          16: `${iconPath}16.png`,
-          32: `${iconPath}32.png`,
-          48: `${iconPath}48.png`,
-          128: `${iconPath}128.png`
-        }
-      });
-
-      // 更新徽章
-      chrome.action.setBadgeText({
-        text: isReading ? '●' : ''
-      });
-
-      chrome.action.setBadgeBackgroundColor({
-        color: '#4CAF50'
-      });
-    } catch (error) {
+    // 更新图标（带错误处理）
+    this.setActionIcon(iconPath).then(() => {
+      console.log('Icon updated successfully');
+    }).catch(error => {
       console.warn('Failed to update icon:', error);
-    }
+      // 图标设置失败不影响功能，只记录警告
+    });
+
+    // 更新徽章（带错误处理）
+    this.setBadge(isReading).catch(error => {
+      console.warn('Failed to update badge:', error);
+    });
+  }
+  
+  // 设置图标（带Promise支持）
+  setActionIcon(iconPath) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.action.setIcon({
+          path: {
+            16: `${iconPath}16.png`,
+            32: `${iconPath}32.png`,
+            48: `${iconPath}48.png`,
+            128: `${iconPath}128.png`
+          }
+        }, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve();
+          }
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+  
+  // 设置徽章（带Promise支持）
+  setBadge(isReading) {
+    return Promise.all([
+      // 设置徽章文本
+      new Promise((resolve, reject) => {
+        chrome.action.setBadgeText({
+          text: isReading ? '●' : ''
+        }, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve();
+          }
+        });
+      }),
+      // 设置徽章背景色
+      new Promise((resolve, reject) => {
+        if (isReading) {
+          chrome.action.setBadgeBackgroundColor({
+            color: '#4CAF50'
+          }, () => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve();
+            }
+          });
+        } else {
+          resolve(); // 不需要设置背景色
+        }
+      })
+    ]);
   }
 }
 

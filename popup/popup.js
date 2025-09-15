@@ -161,20 +161,88 @@ class PopupController {
   async getContentScriptStatus() {
     return new Promise((resolve) => {
       if (!this.currentTab?.id) {
+        this.updateStatusUI('无活动标签页', 'error');
         resolve();
         return;
       }
       
+      // 检查URL是否支持内容脚本
+      if (this.isRestrictedUrl(this.currentTab.url)) {
+        this.updateStatusUI('此页面不支持扩展', 'error');
+        resolve();
+        return;
+      }
+      
+      // 设置超时以避免无限等待
+      const timeout = setTimeout(() => {
+        console.warn('Content script response timeout');
+        this.handleContentScriptUnavailable();
+        resolve();
+      }, 2000);
+      
       chrome.tabs.sendMessage(this.currentTab.id, { type: 'GET_STATUS' }, (response) => {
+        clearTimeout(timeout);
+        
         if (chrome.runtime.lastError) {
           console.warn('Content script not available:', chrome.runtime.lastError.message);
-          this.updateStatusUI('内容脚本未加载', 'error');
+          this.handleContentScriptUnavailable();
         } else if (response) {
           this.updateStatusFromResponse(response);
+        } else {
+          this.handleContentScriptUnavailable();
         }
         resolve();
       });
     });
+  }
+  
+  // 检查是否为受限URL
+  isRestrictedUrl(url) {
+    if (!url) return true;
+    
+    const restrictedPatterns = [
+      /^chrome:/,
+      /^chrome-extension:/,
+      /^edge:/,
+      /^about:/,
+      /^moz-extension:/,
+      /^devtools:/,
+      /^file:/
+    ];
+    
+    return restrictedPatterns.some(pattern => pattern.test(url));
+  }
+  
+  // 处理内容脚本不可用的情况
+  handleContentScriptUnavailable() {
+    this.updateStatusUI('等待页面加载...', 'loading');
+    this.showContentScriptTips();
+  }
+  
+  // 显示内容脚本提示
+  showContentScriptTips() {
+    const existingTips = document.getElementById('content-script-tips');
+    if (existingTips) return;
+    
+    const tips = document.createElement('div');
+    tips.id = 'content-script-tips';
+    tips.className = 'tips-container';
+    tips.innerHTML = `
+      <div class="tips-content">
+        <h4>📖 使用提示</h4>
+        <ul>
+          <li>请刷新页面后重试</li>
+          <li>确保页面已完全加载</li>
+          <li>某些特殊页面（如chrome://）不支持扩展</li>
+          <li>点击"重新检测内容"按钮</li>
+        </ul>
+        <button onclick="this.parentElement.parentElement.remove()" class="close-tips">知道了</button>
+      </div>
+    `;
+    
+    // 在错误消息后插入提示
+    const errorMessage = document.getElementById('error-message');
+    errorMessage.parentNode.insertBefore(tips, errorMessage.nextSibling);
   }
 
   // 检查检测到的内容
@@ -256,14 +324,17 @@ class PopupController {
         throw new Error('没有找到当前标签页');
       }
       
+      if (this.isRestrictedUrl(this.currentTab.url)) {
+        throw new Error('此页面不支持扩展功能');
+      }
+      
       const message = this.isPaused ? 
         { type: 'RESUME_READING' } : 
         { type: 'START_READING', data: {} };
       
-      chrome.tabs.sendMessage(this.currentTab.id, message, (response) => {
-        if (chrome.runtime.lastError) {
-          this.showError('发送消息失败: ' + chrome.runtime.lastError.message);
-        } else if (response?.error) {
+      // 发送消息并处理响应
+      this.sendMessageToContentScript(message, (response) => {
+        if (response?.error) {
           this.showError(response.error);
         } else {
           this.updateStatusUI('正在朗读...', 'active');
@@ -276,16 +347,42 @@ class PopupController {
       this.showError('开始朗读失败: ' + error.message);
     }
   }
+  
+  // 发送消息到内容脚本（带重试机制）
+  sendMessageToContentScript(message, callback, retryCount = 0) {
+    const maxRetries = 2;
+    
+    chrome.tabs.sendMessage(this.currentTab.id, message, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn(`Message send attempt ${retryCount + 1} failed:`, chrome.runtime.lastError.message);
+        
+        if (retryCount < maxRetries) {
+          // 短暂延迟后重试
+          setTimeout(() => {
+            this.sendMessageToContentScript(message, callback, retryCount + 1);
+          }, 500 * (retryCount + 1));
+        } else {
+          // 重试失败，建议用户刷新页面
+          this.showError('无法与页面通信，请刷新页面后重试');
+          this.showContentScriptTips();
+        }
+      } else {
+        callback(response);
+      }
+    });
+  }
 
   // 暂停朗读
   async pauseReading() {
     try {
       if (!this.currentTab?.id) return;
       
-      chrome.tabs.sendMessage(this.currentTab.id, { type: 'PAUSE_READING' }, (response) => {
-        if (!chrome.runtime.lastError && !response?.error) {
+      this.sendMessageToContentScript({ type: 'PAUSE_READING' }, (response) => {
+        if (!response?.error) {
           this.updateStatusUI('已暂停', 'paused');
           this.updateControlsUI(false, true);
+        } else {
+          this.showError('暂停失败: ' + response.error);
         }
       });
       
@@ -300,11 +397,13 @@ class PopupController {
     try {
       if (!this.currentTab?.id) return;
       
-      chrome.tabs.sendMessage(this.currentTab.id, { type: 'STOP_READING' }, (response) => {
-        if (!chrome.runtime.lastError && !response?.error) {
+      this.sendMessageToContentScript({ type: 'STOP_READING' }, (response) => {
+        if (!response?.error) {
           this.updateStatusUI('已停止', 'idle');
           this.updateControlsUI(false, false);
           this.updateProgressUI(0);
+        } else {
+          this.showError('停止失败: ' + response.error);
         }
       });
       
@@ -323,21 +422,28 @@ class PopupController {
         throw new Error('没有找到当前标签页');
       }
       
+      if (this.isRestrictedUrl(this.currentTab.url)) {
+        throw new Error('此页面不支持扩展功能');
+      }
+      
       this.detectBtn.textContent = '检测中...';
       this.detectBtn.disabled = true;
       
-      chrome.tabs.sendMessage(this.currentTab.id, { type: 'DETECT_CONTENT' }, (response) => {
+      this.sendMessageToContentScript({ type: 'DETECT_CONTENT' }, (response) => {
         this.detectBtn.textContent = '重新检测内容';
         this.detectBtn.disabled = false;
         
-        if (chrome.runtime.lastError) {
-          this.showError('检测失败: ' + chrome.runtime.lastError.message);
-        } else if (response?.detected) {
+        if (response?.detected) {
           this.showDetectionInfo({
             length: response.contentLength,
             sentences: response.sentences
           });
           this.updateStatusUI('检测到小说内容', 'idle');
+          // 移除提示
+          const tips = document.getElementById('content-script-tips');
+          if (tips) tips.remove();
+        } else if (response?.error) {
+          this.showError('检测失败: ' + response.error);
         } else {
           this.showError('未检测到小说内容，请确保页面包含文章内容');
         }
@@ -362,10 +468,14 @@ class PopupController {
     });
     
     // 如果正在朗读，立即应用设置
-    if (this.currentTab?.id && this.isReading) {
-      chrome.tabs.sendMessage(this.currentTab.id, {
+    if (this.currentTab?.id && this.isReading && !this.isRestrictedUrl(this.currentTab.url)) {
+      this.sendMessageToContentScript({
         type: 'UPDATE_SETTINGS',
         data: { [key]: value }
+      }, (response) => {
+        if (response?.error) {
+          console.warn('Failed to update settings in content script:', response.error);
+        }
       });
     }
   }

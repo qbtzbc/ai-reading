@@ -1,0 +1,46 @@
+// AI Reading 图标生成脚本
+// 使用纯JavaScript创建PNG图标
+
+// Base64编码的简单图标数据
+const iconData = {
+  16: 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAApklEQVQ4y52TMQ6DMBBEZ5OukpaGFhro6Cj5/x8hHZ0dLQ0tLS0dJQX7sRdFJJJJpJnV7u7M7tkYY4wx/whSSim4o3VdE0IIhBBgjAHnHNgEzjkwxgAhBKWUSOu6JqZpwjAMhF3XqVrrqJTSUkpdVQjBlFIgIqSU1lqHcOdc7L3P1tr4dQAEQUC99/Ha+GN2+TU7/wwhhICIAABorXHOOSml/OzCzvu8xA+qgXjzjtkYGgAAAABJRU5ErkJggg==',
+  32: 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAABrElEQVRYw82WzU7CQBCAlwKK4hPwCSy8gJfwBXgBL+AFvIA8ASfxAl7AC3gBL+AFvAAn9QReAJ+AJ+AJ9Amqf5md2e12u7TU6CYz085+M/Oz0zFms9n8M6SUUkr5i1JK6U5rrZVSSinlf4BSSimllPKPAKWUUkop/whQSimllLIeSin1b4BSSimllLJeSinlv0Ipp5RS/hGglFJKKaX8I0AppZRSSmmt1FprrZVSSj03m82m1lqttdZaa/VVa621Ukor5bvWWmuttVZrrZXWWmt1VWuttdZaK6210kpp3bXWWit1VWuttdZKXdVaa6211kpd1VprrbVWSl3VWmuttVZKXdVaa6211kpd1VprrbVWSl3VWmut1FWttdZaK3VVa6211lopddV/stZaK3VVa6211kpd1VprrbVSSl3VWmuttVZKXdVaa6211kpd1VprrbVSSl3VWmuttVZKXdVaa6211kpd1VprrbVSSl3VWmuttVZKXdVaa6211kpd1VprrbVSSl3VWmuttVZKXdVaa6211kpd1VprrbVSSl3VWmuttVZKXdVaa6211kpd1VprrbVSSl3VWmuttVZKXdVa67/W+gDmgVP3xwA4KAAAAABJRU5ErkJggg==',
+  48: 'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAB2ElEQVRoge2YzU7CQBSFuyBiNL4BL2DiC5h4AX0BXkBfwAt4AS/gBfQFeAEvoCfwAl5AX4AX8AK8gC+g8QX0BfQJ/KeMf3Nmu53SdhZyc5OZnvPd+WfKdMFxHMdxHMdxHMdxHMdx7iOttdZaa6211lprrbXWWitt1lprrZXWWmuttdZaq7XWWmuvvfbaa6+99tprr732uq/XWmuttdZaa6211lprrbXWXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvttddee+21115777XXXnvt/YMfdwOk7/sVqAAAAAElFTkSuQmCC',
+  128: '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'
+};
+
+// 将base64数据转换为Buffer并写入文件
+const fs = require('fs');
+
+function createIconFromBase64(size, data) {
+  try {
+    const buffer = Buffer.from(data, 'base64');
+    fs.writeFileSync(`icons/icon${size}.png`, buffer);
+    console.log(`✓ Created icon${size}.png (${buffer.length} bytes)`);
+    return true;
+  } catch (error) {
+    console.error(`✗ Failed to create icon${size}.png:`, error.message);
+    return false;
+  }
+}
+
+// 创建icons目录如果不存在
+if (!fs.existsSync('icons')) {
+  fs.mkdirSync('icons');
+}
+
+// 生成所有图标
+let successCount = 0;
+Object.entries(iconData).forEach(([size, data]) => {
+  if (createIconFromBase64(size, data)) {
+    successCount++;
+  }
+});
+
+console.log(`\n图标生成完成: ${successCount}/4 个图标创建成功`);
+
+if (successCount === 4) {
+  console.log('所有图标都已成功创建！现在可以正常使用Chrome扩展了。');
+} else {
+  console.log('部分图标创建失败，请检查错误信息。');
+}
